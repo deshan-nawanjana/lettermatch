@@ -1,0 +1,202 @@
+<style>
+    * {
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    #items {
+        text-align: center;
+    }
+
+    #items > img {
+        width: 100px;
+        cursor: pointer;
+        border: 1px solid #1114;
+        margin: 5px;
+        filter: grayscale(100%);
+        transition: filter 0.2s;
+    }
+
+    #items > img:hover {
+        filter: grayscale(0%);
+    }
+
+    #inner {
+        position: relative;
+    }
+
+    canvas {
+        position: fixed;
+        top: 120px;
+        left: calc(50vw - 272px);
+        border: 2px solid #1116;
+    }
+
+    #opts {
+        position: fixed;
+        top: 640px;
+        width: 100vw;
+        text-align: center;
+    }
+
+    button {
+        padding: 10px;
+        width: 120px;
+    }
+
+    #mark {
+        font-size: 20px;
+        line-height: 30px;
+        height: 50px;
+        font-weight: 500;
+    }
+</style>
+
+<div id="items"></div>
+<div id="panel">
+    <canvas id="cnv_1" width="544" height="500"></canvas>
+    <canvas id="cnv_2" width="544" height="500"></canvas>
+</div>
+<div id="opts">
+    <div id="mark">Select image and start drawing</div>
+    <button onclick="resetDrawing()">Retry</button>
+    <button onclick="checkResult()">Show Result</button>
+</div>
+
+<script>
+
+    // all images
+    const images = [
+        './images/ma.png',
+        './images/pa.png',
+        './images/ra.png',
+        './images/ta.png',
+        './images/tha.png'
+    ]
+
+    // passed limit
+    const limit = 50
+
+    // pencil size
+    const s = 20
+
+    // image width
+    const w = 544
+    const h = 500
+
+    // image canvas
+    const cnv_1 = document.querySelector('#cnv_1')
+    // image context
+    const ctx_1 = cnv_1.getContext('2d')
+    // drawing canvas
+    const cnv_2 = document.querySelector('#cnv_2')
+    // drawing context
+    const ctx_2 = cnv_2.getContext('2d')
+
+    // set drawing color
+    ctx_2.fillStyle = '#000000'
+
+    // reset drawing
+    const resetDrawing = () => {
+        // clear result
+        document.querySelector('#mark').innerHTML = 'Click result button after drawing'
+        // clear drawing
+        ctx_2.clearRect(0, 0, w, h)
+    }
+
+    // for each image
+    images.forEach(file => {
+        // create image element
+        const img = document.createElement('img')
+        // set image source
+        img.src = file
+        // image onclick
+        img.addEventListener('click', () => {
+            // clear image
+            ctx_1.clearRect(0, 0, w, h)
+            // update image
+            ctx_1.drawImage(img, 0, 0)
+            // reset drawing
+            resetDrawing()
+        })
+        // append to items
+        document.querySelector('#items').appendChild(img)
+    })
+
+    // mousedown flag
+    let md = false
+
+    // mousedown tracker events
+    cnv_2.addEventListener('mousedown', () => md = true)
+    cnv_2.addEventListener('mouseup', () => md = false)
+    cnv_2.addEventListener('mouseout', () => md = false)
+    cnv_2.addEventListener('mouseleave', () => md = false)
+
+    // mousemove event
+    cnv_2.addEventListener('mousemove', event => {
+        // return if not mousedown
+        if(md === false) { return }
+        // begin path
+        ctx_2.beginPath()
+        // draw arc
+        ctx_2.arc(event.layerX, event.layerY, s, 0, 2 * Math.PI)
+        // fill circle
+        ctx_2.fill()
+    })
+
+    // method to check result
+    const checkResult = () => {
+        // image data
+        const arrI = ctx_1.getImageData(0, 0, w, h).data
+        // drawing data
+        const arrD = ctx_2.getImageData(0, 0, w, h).data
+        // correct count
+        let c = 0
+        // missed count
+        let m = 0
+        // out of bound count
+        let b = 0
+        // total red
+        let rc = 0
+        // total black
+        let bc = 0
+        // for each data item
+        for(let i = 0; i < arrI.length; i+= 4) {
+            // image values
+            const rI = arrI[i]
+            const gI = arrI[i + 1]
+            const bI = arrI[i + 2]
+            const aI = arrI[i + 3]
+            // drawing values
+            const rD = arrD[i]
+            const gD = arrD[i + 1]
+            const bD = arrD[i + 2]
+            const aD = arrD[i + 3]
+            // is red
+            const red = rI === 255 && gI === 0 && bI === 0 && aI === 255
+            // is black
+            const blk = rD === 0 && gD === 0 && bD === 0 && aD === 255
+            // increase red
+            if(red) { rc++ }
+            // increase black
+            if(blk) { bc++ }
+            // increase correct
+            if(red && blk) { c++ }
+            // increase missed
+            else if(red && !blk) { m++ }
+            // increase out of bound
+            else if(!red && blk) { b++ }
+        }
+
+        // covered precentage
+        const cvr = 100 * c / rc
+        // missed precentage
+        const msd = 100 * (m + b) / bc
+        // final result
+        const rst = (cvr - msd).toFixed(2)
+        // final state
+        const sta = rst > limit ? 'Passed' : 'Failed'
+        // display result
+        document.querySelector('#mark').innerHTML = `${rst > 0 ? rst : 0}% (${sta})`
+    }
+
+</script>
